@@ -1,0 +1,135 @@
+name: Update Formula
+
+# Dispatched by the CLI repo's release workflow after a successful
+# release build. Receives the new version + per-platform sha256s and
+# re-templates the relevant formula file (glow or glow-beta).
+
+on:
+  workflow_dispatch:
+    inputs:
+      formula:
+        description: "Formula name: glow or glow-beta"
+        required: true
+      version:
+        description: "Version number (e.g. 1.0.0)"
+        required: true
+      tag:
+        description: "Release tag (e.g. v1.0.0 or v1.0.0-beta)"
+        required: true
+      sha_arm_mac:
+        description: "SHA256 for aarch64-apple-darwin"
+        required: true
+      sha_x86_mac:
+        description: "SHA256 for x86_64-apple-darwin"
+        required: true
+      sha_arm_linux:
+        description: "SHA256 for aarch64-unknown-linux-gnu"
+        required: false
+      sha_x86_linux:
+        description: "SHA256 for x86_64-unknown-linux-gnu"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Update formula
+        run: |
+          FORMULA="${{ inputs.formula }}"
+          VERSION="${{ inputs.version }}"
+          TAG="${{ inputs.tag }}"
+          SHA_ARM_MAC="${{ inputs.sha_arm_mac }}"
+          SHA_X86_MAC="${{ inputs.sha_x86_mac }}"
+          SHA_ARM_LINUX="${{ inputs.sha_arm_linux }}"
+          SHA_X86_LINUX="${{ inputs.sha_x86_linux }}"
+
+          case "$FORMULA" in
+            glow)
+              CLASS_NAME="Glow"
+              DESC="CLI for the Glow platform — deploy and manage Glow instances"
+              BIN_NAME="glow"
+              BIN_ALIAS="glw"
+              ;;
+            glow-beta)
+              CLASS_NAME="GlowBeta"
+              DESC="CLI for the Glow platform (beta channel) — deploy and manage Glow instances"
+              BIN_NAME="glow-beta"
+              BIN_ALIAS="glw-beta"
+              ;;
+            *)
+              echo "::error::unknown formula: $FORMULA"
+              exit 1
+              ;;
+          esac
+
+          # Tarball prefix in release artifacts is always "glow"
+          # (the binary inside is renamed for the beta channel).
+          TARBALL_PREFIX="glow"
+          if [ "$FORMULA" = "glow-beta" ]; then
+            TARBALL_PREFIX="glow-beta"
+          fi
+
+          # Aarch64 linux is optional — emit the block only if a sha was passed.
+          ARM_LINUX_BLOCK=""
+          if [ -n "$SHA_ARM_LINUX" ]; then
+            ARM_LINUX_BLOCK="    if Hardware::CPU.arm?
+                  url \"https://github.com/glow-academic/cli/releases/download/${TAG}/${TARBALL_PREFIX}-aarch64-unknown-linux-gnu.tar.gz\"
+                  sha256 \"${SHA_ARM_LINUX}\"
+                else"
+            ARM_LINUX_END="    end"
+          fi
+
+          cat > "Formula/${FORMULA}.rb" << EOF
+          class ${CLASS_NAME} < Formula
+            desc "${DESC}"
+            homepage "https://github.com/glow-academic/cli"
+            version "${VERSION}"
+            license "PolyForm-Noncommercial-1.0.0"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/glow-academic/cli/releases/download/${TAG}/${TARBALL_PREFIX}-aarch64-apple-darwin.tar.gz"
+                sha256 "${SHA_ARM_MAC}"
+              else
+                url "https://github.com/glow-academic/cli/releases/download/${TAG}/${TARBALL_PREFIX}-x86_64-apple-darwin.tar.gz"
+                sha256 "${SHA_X86_MAC}"
+              end
+            end
+
+            on_linux do
+          ${ARM_LINUX_BLOCK}
+                url "https://github.com/glow-academic/cli/releases/download/${TAG}/${TARBALL_PREFIX}-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${SHA_X86_LINUX}"
+          ${ARM_LINUX_END}
+            end
+
+            def install
+              bin.install "${BIN_NAME}"
+              bin.install "${BIN_ALIAS}"
+              generate_completions_from_executable(bin/"${BIN_NAME}", "completions")
+            end
+
+            test do
+              assert_match "Glow CLI", shell_output("#{bin}/${BIN_NAME} --help")
+              assert_match version.to_s, shell_output("#{bin}/${BIN_NAME} --version")
+            end
+          end
+          EOF
+          sed -i 's/^          //' "Formula/${FORMULA}.rb"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "Formula/${{ inputs.formula }}.rb"
+          if git diff --cached --quiet; then
+            echo "Formula already up to date"
+          else
+            git commit -m "Update ${{ inputs.formula }} to ${{ inputs.tag }}"
+            git push
+          fi
