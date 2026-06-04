@@ -1,23 +1,23 @@
 class Glow < Formula
   desc "CLI for the Glow platform — deploy and manage Glow instances"
   homepage "https://github.com/glow-academic/cli"
-  version "1.0.15"
+  version "1.0.16"
   license "PolyForm-Noncommercial-1.0.0"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/glow-academic/cli/releases/download/v1.0.15/glow-aarch64-apple-darwin.tar.gz"
-      sha256 "92b6c781f8a303a5122278b1925fe1287b85617c05fd05e4beccccfca7d528e6"
+      url "https://github.com/glow-academic/cli/releases/download/v1.0.16/glow-aarch64-apple-darwin.tar.gz"
+      sha256 "cc25acc81b506097e54053d24b117d512660bbf688f72e44b8173d2aac27ed5f"
     else
-      url "https://github.com/glow-academic/cli/releases/download/v1.0.15/glow-x86_64-apple-darwin.tar.gz"
-      sha256 "2f63cadd2d6bc605a503e2b2ad240736f64db3cd36fc77474c07f8eb0676740e"
+      url "https://github.com/glow-academic/cli/releases/download/v1.0.16/glow-x86_64-apple-darwin.tar.gz"
+      sha256 "eb85c02f5c4651d2f7f610b3d403731801c9fc68212043edf09ca8ff916ed10b"
     end
   end
 
   on_linux do
 
-      url "https://github.com/glow-academic/cli/releases/download/v1.0.15/glow-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "a9a0bdfbf1e762cea07eac576b166de6a7c21ed35493396e83357112a24a4066"
+      url "https://github.com/glow-academic/cli/releases/download/v1.0.16/glow-x86_64-unknown-linux-gnu.tar.gz"
+      sha256 "aced3f82455448cd232b23576d741631b838436c6c0453ad60ff50c37076e7e0"
 
   end
 
